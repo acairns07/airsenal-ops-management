@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: airsenal-mongo
+    environment:
+      MONGO_INITDB_DATABASE: airsenal_control
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: airsenal-backend
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=airsenal_control
+      - CORS_ORIGINS=http://localhost:3000
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-key}
+    volumes:
+      - airsenal-data:/data/airsenal
+      - ./backend:/app/backend
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: airsenal-frontend
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8001
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+  airsenal-data:

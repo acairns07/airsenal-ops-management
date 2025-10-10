@@ -10,6 +10,26 @@ const LogViewer = ({ jobId, onStatusChange }) => {
   useEffect(() => {
     if (!jobId) return;
 
+    // Fetch existing logs from API first
+    const fetchLogs = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/jobs/${jobId}`);
+        if (response.data.logs && response.data.logs.length > 0) {
+          setLogs(response.data.logs);
+        }
+        if (response.data.status) {
+          setStatus(response.data.status);
+          if (onStatusChange) {
+            onStatusChange(response.data.status);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch logs:', error);
+      }
+    };
+    
+    fetchLogs();
+
     // Get backend URL from env
     const backendUrl = process.env.REACT_APP_BACKEND_URL;
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');

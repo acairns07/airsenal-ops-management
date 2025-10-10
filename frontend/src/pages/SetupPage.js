@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { PlayCircle, RefreshCw, Database, Loader2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { PlayCircle, RefreshCw, Database, Loader2, CheckCircle2, XCircle, AlertTriangle, Zap } from 'lucide-react';
 import LogViewer from '@/components/LogViewer';
 
 const SetupPage = () => {

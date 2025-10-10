@@ -21,7 +21,7 @@ async def setup_admin():
     db = client[db_name]
     
     # Default admin credentials
-    admin_email = "admin@airsenal.local"
+    admin_email = "admin@airsenal.com"
     admin_password = "admin123"  # Change this!
     
     # Generate password hash

@@ -106,11 +106,24 @@ def run_pipeline():
     print("\nPipeline completed successfully!")
 
 def main():
-    if len(sys.argv) < 2:
+    # Get command from script name or first argument
+    import os
+    script_name = os.path.basename(sys.argv[0])
+    
+    # Map script names to commands
+    command_map = {
+        'airsenal_setup_initial_db': 'setup_initial_db',
+        'airsenal_update_db': 'update_db',
+        'airsenal_run_prediction': 'run_prediction',
+        'airsenal_run_optimization': 'run_optimization',
+        'airsenal_run_pipeline': 'run_pipeline'
+    }
+    
+    command = command_map.get(script_name, sys.argv[1] if len(sys.argv) > 1 else None)
+    
+    if not command:
         print("Usage: airsenal_mock.py <command> [options]")
         return
-    
-    command = sys.argv[1]
     
     if command == "setup_initial_db":
         setup_initial_db()

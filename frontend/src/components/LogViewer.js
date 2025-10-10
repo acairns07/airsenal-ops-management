@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import axios from 'axios';
 
 const LogViewer = ({ jobId, onStatusChange }) => {
   const [logs, setLogs] = useState([]);

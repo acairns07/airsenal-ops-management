@@ -1,0 +1,32 @@
+# root-level ignores
+.git
+.gitignore
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+*.log
+.env
+.env.*
+venv/
+.venv/
+
+# frontend / node
+frontend/node_modules/
+frontend/.next/
+frontend/build/
+frontend/dist/
+frontend/.turbo/
+frontend/yarn.lock
+node_modules/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# docker/build artifacts
+docker-cache/
+
+# Docker noise
+docker-compose*.yml

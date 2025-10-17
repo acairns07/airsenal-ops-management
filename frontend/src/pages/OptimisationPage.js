@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API } from '@/App';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Target, PlayCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import LogViewer from '@/components/LogViewer';
@@ -17,6 +18,8 @@ const OptimisationPage = () => {
   const [benchBoostWeek, setBenchBoostWeek] = useState(0);
   const [currentJob, setCurrentJob] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
+  const [report, setReport] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   const runOptimisation = async () => {
     try {
@@ -35,6 +38,8 @@ const OptimisationPage = () => {
       });
       setCurrentJob(response.data);
       setJobStatus('running');
+      setReport(null);
+      setReportLoading(false);
       toast.success('Optimisation started');
     } catch (error) {
       console.error('Optimisation error:', error);
@@ -48,8 +53,63 @@ const OptimisationPage = () => {
       toast.success('Optimisation completed successfully!');
     } else if (status === 'failed') {
       toast.error('Optimisation failed');
+    } else if (status === 'cancelled') {
+      toast.warning('Optimisation cancelled');
     }
   };
+
+
+useEffect(() => {
+  const jobId = currentJob?.id;
+  if (!jobId) {
+    setReport(null);
+    setReportLoading(false);
+    return;
+  }
+
+  if (jobStatus === 'running' || jobStatus === 'cancelling') {
+    setReport(null);
+    setReportLoading(false);
+    return;
+  }
+
+  if (jobStatus === 'failed' || jobStatus === 'cancelled') {
+    setReport(null);
+    setReportLoading(false);
+    return;
+  }
+
+  if (jobStatus !== 'completed') {
+    return;
+  }
+
+  let cancelled = false;
+
+  const loadReport = async () => {
+    try {
+      setReportLoading(true);
+      const response = await axios.get(`${API}/jobs/${jobId}/output`);
+      if (!cancelled) {
+        setReport(response.data.output || null);
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setReport(null);
+        toast.error(error.response?.data?.detail || 'Unable to load optimisation report');
+      }
+    } finally {
+      if (!cancelled) {
+        setReportLoading(false);
+      }
+    }
+  };
+
+  loadReport();
+
+  return () => {
+    cancelled = true;
+  };
+}, [currentJob?.id, jobStatus]);
 
   return (
     <div className="max-w-6xl space-y-6" data-testid="optimisation-page">
@@ -193,6 +253,63 @@ const OptimisationPage = () => {
           </CardContent>
         </Card>
       )}
+
+{(reportLoading || report || jobStatus === 'completed') && (
+  <Card className="border-zinc-800 bg-zinc-900/50" data-testid="optimisation-report-card">
+    <CardHeader>
+      <CardTitle className="text-white">Optimisation Report</CardTitle>
+      <CardDescription>Insights from the latest optimisation run</CardDescription>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      {reportLoading ? (
+        <div className="flex items-center text-zinc-400">
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          Building report...
+        </div>
+      ) : report ? (
+        <>
+          {report.transfers && report.transfers.length > 0 ? (
+            <div className="space-y-2">
+              <h4 className="text-sm uppercase tracking-wide text-zinc-500">Recommended Transfers</h4>
+              {report.transfers.map((move, index) => (
+                <div
+                  key={`${move.out}-${move.in}-${index}`}
+                  className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-zinc-900/60 border border-zinc-800"
+                >
+                  <div className="text-white font-medium">{move.out} -> {move.in}</div>
+                  <div className="flex items-center gap-3 text-sm text-zinc-300">
+                    <span>Cost: {move.cost}</span>
+                    <span>Gain: {move.gain}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">No transfer recommendations captured in the output.</p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
+            {report.captain && (
+              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">Captain: {report.captain}</Badge>
+            )}
+            {report.vice_captain && (
+              <Badge className="bg-blue-500/20 text-blue-200 border-blue-500/30">Vice: {report.vice_captain}</Badge>
+            )}
+            {report.expected_points && (
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-300">Expected: {report.expected_points}</Badge>
+            )}
+          </div>
+
+          {report.summary_text && (
+            <pre className="text-xs text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-lg p-3 overflow-x-auto">{report.summary_text}</pre>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-zinc-500">Report not available yet. The job may still be processing output.</p>
+      )}
+    </CardContent>
+  </Card>
+)}
 
       {/* Results Info */}
       <Card className="border-zinc-800 bg-zinc-900/50">

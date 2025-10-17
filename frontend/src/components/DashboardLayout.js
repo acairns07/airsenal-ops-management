@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '@/App';
 import { Button } from '@/components/ui/button';
-import { Settings, Target, TrendingUp, Zap, FolderOpen, LogOut } from 'lucide-react';
+import { Settings, Target, TrendingUp, Zap, FolderOpen, LogOut, Users } from 'lucide-react';
 
 const DashboardLayout = () => {
   const location = useLocation();
@@ -18,6 +18,7 @@ const DashboardLayout = () => {
     { path: '/setup', label: 'Setup', icon: Zap },
     { path: '/predictions', label: 'Predictions', icon: TrendingUp },
     { path: '/optimisation', label: 'Optimisation', icon: Target },
+    { path: '/team', label: 'Team', icon: Users },
     { path: '/jobs', label: 'Jobs & Logs', icon: FolderOpen },
     { path: '/settings', label: 'Settings', icon: Settings },
   ];

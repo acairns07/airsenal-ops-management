@@ -78,3 +78,21 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/ 
+
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+
+# Node
+node_modules/
+build/
+dist/
+*.log
+
+# App-specific
+backend/.env
+envstorage.json

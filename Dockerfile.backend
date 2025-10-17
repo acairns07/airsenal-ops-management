@@ -1,30 +1,52 @@
-FROM python:3.11-slim
+# syntax=docker/dockerfile:1.7   # enables cache mounts for pip, etc.
 
+# --- Base ---
+FROM python:3.11-slim AS runtime
+
+# Prod-y defaults
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    ENVIRONMENT=production
+
+WORKDIR /app
+
+# Minimal system deps (git needed to pip install from GitHub)
+# add build tools only if wheels are unavailable in your env
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# --- Python deps first (maximize layer cache) ---
+COPY backend/requirements.txt /app/requirements.txt
+# Use BuildKit cache for pip so wheels are reused across builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r /app/requirements.txt
+
+
+# --- AIrsenal (latest dev branch by default) ---
+# You can pin to a tag or commit: e.g. AIRSENAL_REF=7b0f9e1 or v0.5.3
+ARG AIRSENAL_REF=develop
+ARG AIRSENAL_REPO=https://github.com/alan-turing-institute/AIrsenal.git
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install "git+${AIRSENAL_REPO}@${AIRSENAL_REF}#egg=airsenal"
+
+
+# --- Copy app code last so normal edits don't bust earlier layers ---
+COPY backend/ /app/backend
+
+# Safety: never ship dev .env inside the image
+RUN rm -f /app/backend/.env || true
+
+# Working directory is where server.py lives
 WORKDIR /app/backend
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy backend code
-COPY backend/ .
-
-# Copy and setup AIrsenal mock
-RUN chmod +x airsenal_mock.py && \
-    ln -sf /app/backend/airsenal_mock.py /usr/local/bin/airsenal_setup_initial_db && \
-    ln -sf /app/backend/airsenal_mock.py /usr/local/bin/airsenal_update_db && \
-    ln -sf /app/backend/airsenal_mock.py /usr/local/bin/airsenal_run_prediction && \
-    ln -sf /app/backend/airsenal_mock.py /usr/local/bin/airsenal_run_optimization && \
-    ln -sf /app/backend/airsenal_mock.py /usr/local/bin/airsenal_run_pipeline
-
-# Create data directory
+# Runtime data dir (mounted in ACA to persist SQLite)
 RUN mkdir -p /data/airsenal
 
 EXPOSE 8001
+
+# HEALTHCHECK (optional)
+# HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD wget -qO- http://127.0.0.1:8001/api/health || exit 1
 
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]

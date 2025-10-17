@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import SetupPage from "@/pages/SetupPage";
 import PredictionsPage from "@/pages/PredictionsPage";
 import OptimisationPage from "@/pages/OptimisationPage";
+import TeamPage from "@/pages/TeamPage";
 import JobsPage from "@/pages/JobsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import { Toaster } from "@/components/ui/sonner";
@@ -80,6 +81,7 @@ function App() {
               <Route path="setup" element={<SetupPage />} />
               <Route path="predictions" element={<PredictionsPage />} />
               <Route path="optimisation" element={<OptimisationPage />} />
+              <Route path="team" element={<TeamPage />} />
               <Route path="jobs" element={<JobsPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>

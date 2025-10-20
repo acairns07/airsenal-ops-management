@@ -430,66 +430,163 @@ class JobQueue:
         return section
 
     def _parse_prediction_output(self, parameters: Dict[str, Any], logs: List[str]) -> Optional[Dict[str, Any]]:
-        section = self._collect_section(
-            logs,
-            start_keywords=["top predicted players"],
-            stop_keywords=["predictions saved", "prediction saved", "optimization complete", "optimisation complete"]
-        )
-        if not section:
+        ansi_escape = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+        def clean_line(line: str) -> str:
+            cleaned = ansi_escape.sub('', line.replace('\r', ''))
+            return cleaned.strip()
+
+        cleaned_lines: List[str] = []
+        for raw_line in logs:
+            cleaned = clean_line(raw_line)
+            if cleaned:
+                cleaned_lines.append(cleaned)
+
+        start_idx = next((idx for idx, value in enumerate(cleaned_lines)
+                          if value.upper().startswith("PREDICTED TOP")), None)
+        if start_idx is None:
             return None
 
-        player_pattern = re.compile(r"^\s*(\d+)\.\s+(?P<player>.+?)\s+-\s+Expected points:\s+(?P<points>[-+]?\d+(?:\.\d+)?)", re.IGNORECASE)
-        players = []
-        for line in section[1:]:
-            match = player_pattern.match(line)
-            if match:
-                players.append({
-                    "rank": int(match.group(1)),
-                    "player": match.group("player").strip(),
-                    "expected_points": float(match.group("points"))
-                })
+        summary_lines: List[str] = []
+        for line in cleaned_lines[start_idx:]:
+            summary_lines.append(line)
+            if line.lower().startswith("persisted db"):
+                break
 
-        summary_text = "\n".join(section).strip()
+        headline = summary_lines[0] if summary_lines else ""
+        player_pattern = re.compile(r"^\s*(\d+)\.\s*(?P<player>[^,]+),\s*(?P<points>[-+]?\d+(?:\.\d+)?)pts", re.IGNORECASE)
+        players: List[Dict[str, Any]] = []
+        current_position: Optional[str] = None
+        rank_counter = 1
+        for line in summary_lines[1:]:
+            if not line or set(line) == {'-'}:
+                continue
+            if line.endswith(':') and line[:-1].isupper():
+                current_position = line[:-1]
+                continue
+            match = player_pattern.match(line)
+            if not match:
+                continue
+            try:
+                points_value = float(match.group('points'))
+            except ValueError:
+                points_value = None
+            player_entry: Dict[str, Any] = {
+                "rank": rank_counter,
+                "player": match.group('player').strip(),
+                "expected_points": points_value,
+            }
+            if current_position:
+                player_entry["position"] = current_position
+            players.append(player_entry)
+            rank_counter += 1
+
+        summary_text = "\n".join(summary_lines).strip()
         return {
             "type": "prediction",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "parameters": parameters,
-            "headline": section[0].strip() if section else "",
+            "headline": headline,
             "players": players,
             "summary_text": summary_text,
         }
 
+
     def _parse_optimization_output(self, parameters: Dict[str, Any], logs: List[str]) -> Optional[Dict[str, Any]]:
-        section = self._collect_section(
-            logs,
-            start_keywords=["recommended transfers"],
-            stop_keywords=["optimization complete", "optimisation complete", "pipeline completed"]
-        )
-        transfers = []
-        transfer_pattern = re.compile(
-            r"OUT:\s*(?P<out>.+?)\s*(?:\u2192|->)\s*IN:\s*(?P<in>.+?)\s*\|\s*Cost:\s*(?P<cost>[^|]+)\|\s*Gain:\s*(?P<gain>.+)",
-            re.IGNORECASE
-        )
-        for line in section[1:]:
-            match = transfer_pattern.search(line)
-            if match:
+        ansi_escape = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+        def clean_line(line: str) -> str:
+            cleaned = ansi_escape.sub('', line.replace('\r', ''))
+            return cleaned.strip()
+
+        cleaned_lines: List[str] = []
+        for raw_line in logs:
+            cleaned = clean_line(raw_line)
+            if cleaned:
+                cleaned_lines.append(cleaned)
+
+        summary_lines: List[str] = []
+        capture = False
+        for line in cleaned_lines:
+            if not capture and line.startswith("Strategy for Team ID"):
+                capture = True
+            if capture:
+                summary_lines.append(line)
+                if line.lower().startswith("persisted db"):
+                    break
+
+        if not summary_lines:
+            return None
+
+        summary_text = "\n".join(summary_lines).strip()
+        baseline_match = re.search(r"Baseline score:\s*([-+]?\d+(?:\.\d+)?)", summary_text)
+        best_match = re.search(r"Best score:\s*([-+]?\d+(?:\.\d+)?)", summary_text)
+        total_match = re.search(r"Total score:\s*([-+]?\d+(?:\.\d+)?)", summary_text)
+        baseline_points = float(baseline_match.group(1)) if baseline_match else None
+        best_points = float(best_match.group(1)) if best_match else None
+        expected_points = float(total_match.group(1)) if total_match else best_points
+
+        transfers: List[Dict[str, str]] = []
+        try:
+            transfer_idx = next(idx for idx, value in enumerate(summary_lines)
+                                 if value.lower().startswith("players in"))
+        except StopIteration:
+            transfer_idx = None
+        if transfer_idx is not None:
+            for line in summary_lines[transfer_idx + 2:]:
+                if not line or line.startswith("=") or line.startswith("Total score") or line.startswith("Getting starting squad") or line.lower().startswith("total progress"):
+                    break
+                if set(line.replace('\t', '').strip()) == {'-'}:
+                    continue
+                parts = [part.strip() for part in re.split(r"\s{2,}|\t+", line) if part.strip()]
+                if not parts:
+                    continue
+                in_player = parts[0]
+                out_player = parts[1] if len(parts) > 1 else ""
                 transfers.append({
-                    "out": match.group("out").strip(),
-                    "in": match.group("in").strip(),
-                    "cost": match.group("cost").strip(),
-                    "gain": match.group("gain").strip(),
+                    "in": in_player,
+                    "out": out_player,
                 })
 
-        captain = next((line.split(":", 1)[1].strip() for line in logs if "captain" in line.lower() and "recommended captain" in line.lower()), None)
-        vice_captain = next((line.split(":", 1)[1].strip() for line in logs if "vice" in line.lower() and "captain" in line.lower()), None)
-        expected_points_line = next((line for line in logs if "expected points" in line.lower()), None)
-        expected_points = None
-        if expected_points_line and ":" in expected_points_line:
-            expected_points = expected_points_line.split(":", 1)[1].strip()
+        captain = None
+        vice_captain = None
+        starting_lineup: List[Dict[str, str]] = []
+        bench: List[Dict[str, str]] = []
+        current_group: Optional[str] = None
+        in_starting_section = False
+        for line in summary_lines:
+            if line.startswith("=== starting 11"):
+                in_starting_section = True
+                current_group = None
+                continue
+            if not in_starting_section:
+                continue
+            if line.startswith("=== subs"):
+                current_group = "Subs"
+                continue
+            if line.startswith("=="):
+                current_group = line.strip('=').strip()
+                continue
+            if not line or line.startswith("Persisted DB"):
+                continue
+            if line.lower().startswith("total progress"):
+                break
+            if set(line.replace('\t', '').strip()) == {'-'}:
+                continue
+            name = re.sub(r"\s*\(VC\)|\s*\(C\)", "", line).strip()
+            if not name:
+                continue
+            entry = {"name": name, "position_group": current_group or ""}
+            if current_group == "Subs":
+                bench.append(entry)
+            else:
+                starting_lineup.append(entry)
+            if "(C)" in line and not captain:
+                captain = name
+            if "(VC)" in line and not vice_captain:
+                vice_captain = name
 
-        summary_text = "\n".join(section).strip() if section else ""
-
-        return {
+        result: Dict[str, Any] = {
             "type": "optimisation",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "parameters": parameters,
@@ -499,6 +596,17 @@ class JobQueue:
             "expected_points": expected_points,
             "summary_text": summary_text,
         }
+        if baseline_points is not None:
+            result["baseline_points"] = baseline_points
+        if best_points is not None:
+            result["best_points"] = best_points
+        if starting_lineup:
+            result["starting_lineup"] = starting_lineup
+        if bench:
+            result["bench"] = bench
+        return result
+
+
     async def log_to_job(self, job_id: str, message: str):
         """Add log message to job"""
         await db.jobs.update_one(

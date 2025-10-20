@@ -34,6 +34,37 @@ const PredictionsPage = () => {
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchLatestReport = async () => {
+      try {
+        setReportLoading(true);
+        const response = await axios.get(`${API}/reports/latest`);
+        if (!cancelled) {
+          const latestReport = response.data?.prediction || null;
+          setReport(latestReport);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Latest prediction report load failed:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setReportLoading(false);
+        }
+      }
+    };
+
+    if (!currentJob) {
+      fetchLatestReport();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentJob]);
+
   const handleJobComplete = (status) => {
     setJobStatus(status);
     if (status === 'completed') {

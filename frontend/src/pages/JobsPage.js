@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FolderOpen, Clock, CheckCircle2, XCircle, Loader2, Eye, StopCircle, Ban } from 'lucide-react';
+import { FolderOpen, Clock, CheckCircle2, XCircle, Loader2, Eye, StopCircle, Ban, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import LogViewer from '@/components/LogViewer';
 

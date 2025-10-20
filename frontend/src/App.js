@@ -12,8 +12,37 @@ import JobsPage from "@/pages/JobsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import { Toaster } from "@/components/ui/sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-export const API = `${BACKEND_URL}/api`;
+const normalizeBackendUrl = (value) => {
+  if (!value) {
+    return '';
+  }
+  return value.replace(/\/+$/, '');
+};
+
+const resolveBackendUrl = () => {
+  const envUrl = normalizeBackendUrl(process.env.REACT_APP_BACKEND_URL?.trim());
+  if (envUrl) {
+    return envUrl;
+  }
+
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname, port } = window.location;
+    const host = port ? `${hostname}:${port}` : hostname;
+
+    if (host.includes('frontend')) {
+      return `${protocol}//${host.replace('frontend', 'backend')}`;
+    }
+
+    return '';
+  }
+
+  return '';
+};
+
+const BACKEND_URL = resolveBackendUrl();
+export const API = BACKEND_URL ? `${BACKEND_URL}/api` : '/api';
+
+axios.defaults.baseURL = BACKEND_URL || axios.defaults.baseURL;
 
 // Auth context
 export const AuthContext = React.createContext(null);

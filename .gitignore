@@ -96,3 +96,9 @@ dist/
 # App-specific
 backend/.env
 envstorage.json
+
+backend/setup_admin.py
+
+.env
+backend/.env
+*.env

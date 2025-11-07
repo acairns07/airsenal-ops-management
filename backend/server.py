@@ -53,6 +53,14 @@ async def startup_event():
     init_job_queue(db)
     logger.info("Job queue initialized")
 
+    # Initialize AI and intelligence services
+    from ai.recommendation_engine import init_recommendation_engine
+    from intelligence.intelligence_service import init_intelligence_service
+
+    init_recommendation_engine(db)
+    init_intelligence_service(db)
+    logger.info("AI and intelligence services initialized")
+
     logger.info("Application startup complete")
 
 

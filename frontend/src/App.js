@@ -10,6 +10,7 @@ import OptimisationPage from "@/pages/OptimisationPage";
 import TeamPage from "@/pages/TeamPage";
 import JobsPage from "@/pages/JobsPage";
 import SettingsPage from "@/pages/SettingsPage";
+import AIRecommendationsPage from "@/pages/AIRecommendationsPage";
 import { Toaster } from "@/components/ui/sonner";
 
 const normalizeBackendUrl = (value) => {
@@ -108,6 +109,7 @@ function App() {
             >
               <Route index element={<Navigate to="/setup" replace />} />
               <Route path="setup" element={<SetupPage />} />
+              <Route path="ai-recommendations" element={<AIRecommendationsPage />} />
               <Route path="predictions" element={<PredictionsPage />} />
               <Route path="optimisation" element={<OptimisationPage />} />
               <Route path="team" element={<TeamPage />} />

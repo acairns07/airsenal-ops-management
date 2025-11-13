@@ -45,6 +45,9 @@ Pygments==2.19.2
 PyJWT==2.10.1
 pymongo==4.5.0
 pytest==8.4.2
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+pytest-mock==3.14.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-jose==3.5.0
@@ -71,3 +74,10 @@ watchfiles==1.1.0
 websockets==15.0.1
 
 httpx==0.27.2
+
+# AI & Intelligence
+openai==1.58.1
+praw==7.8.1
+newsapi-python==0.2.7
+beautifulsoup4==4.12.3
+feedparser==6.0.11
